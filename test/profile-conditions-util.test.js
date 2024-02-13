@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2020-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,10 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* eslint-disable no-multi-spaces */
-
 import {describe, expect, test} from 'vitest';
-import {ProfileConditionsUtil} from '../ext/js/background/profile-conditions-util.js';
+import {createSchema, normalizeContext} from '../ext/js/background/profile-conditions-util.js';
 
 /** */
 function testNormalizeContext() {
@@ -52,8 +50,7 @@ function testNormalizeContext() {
         ];
 
         test.each(data)('normalize-context-test-%#', ({context, expected}) => {
-            const profileConditionsUtil = new ProfileConditionsUtil();
-            const actual = profileConditionsUtil.normalizeContext(context);
+            const actual = normalizeContext(context);
             expect(actual).toStrictEqual(expected);
         });
     });
@@ -62,6 +59,7 @@ function testNormalizeContext() {
 /** */
 function testSchemas() {
     describe('Schemas', () => {
+        /* eslint-disable @stylistic/no-multi-spaces */
         /** @type {{conditionGroups: import('settings').ProfileConditionGroup[], expectedSchema?: import('ext/json-schema').Schema, inputs?: {expected: boolean, context: import('settings').OptionsContext}[]}[]} */
         const data = [
             // Empty
@@ -1099,16 +1097,16 @@ function testSchemas() {
                 ]
             }
         ];
+        /* eslint-enable @stylistic/no-multi-spaces */
 
         test.each(data)('schemas-test-%#', ({conditionGroups, expectedSchema, inputs}) => {
-            const profileConditionsUtil = new ProfileConditionsUtil();
-            const schema = profileConditionsUtil.createSchema(conditionGroups);
+            const schema = createSchema(conditionGroups);
             if (typeof expectedSchema !== 'undefined') {
                 expect(schema.schema).toStrictEqual(expectedSchema);
             }
             if (Array.isArray(inputs)) {
                 for (const {expected, context} of inputs) {
-                    const normalizedContext = profileConditionsUtil.normalizeContext(context);
+                    const normalizedContext = normalizeContext(context);
                     const actual = schema.isValid(normalizedContext);
                     expect(actual).toStrictEqual(expected);
                 }

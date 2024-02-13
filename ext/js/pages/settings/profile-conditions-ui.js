@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2020-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {EventDispatcher, EventListenerCollection} from '../../core.js';
+import {EventDispatcher} from '../../core/event-dispatcher.js';
+import {EventListenerCollection} from '../../core/event-listener-collection.js';
 import {DocumentUtil} from '../../dom/document-util.js';
 import {querySelectorNotNull} from '../../dom/query-selector.js';
 import {KeyboardMouseInputField} from './keyboard-mouse-input-field.js';
@@ -50,7 +51,7 @@ export class ProfileConditionsUI extends EventDispatcher {
         const normalizeInteger = this._normalizeInteger.bind(this);
         const validateFlags = this._validateFlags.bind(this);
         const normalizeFlags = this._normalizeFlags.bind(this);
-        /* eslint-disable no-multi-spaces */
+        /* eslint-disable @stylistic/no-multi-spaces */
         /** @type {Map<import('profile-conditions-ui').DescriptorType, import('profile-conditions-ui').Descriptor>} */
         this._descriptors = new Map([
             [
@@ -106,7 +107,7 @@ export class ProfileConditionsUI extends EventDispatcher {
                 }
             ]
         ]);
-        /* eslint-enable no-multi-spaces */
+        /* eslint-enable @stylistic/no-multi-spaces */
         /** @type {Set<string>} */
         this._validFlags = new Set([
             'clipboard'

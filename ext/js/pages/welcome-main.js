@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2019-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,10 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {log} from '../core.js';
+import {Application} from '../application.js';
 import {DocumentFocusController} from '../dom/document-focus-controller.js';
 import {querySelectorNotNull} from '../dom/query-selector.js';
-import {yomitan} from '../yomitan.js';
 import {ExtensionContentController} from './common/extension-content-controller.js';
 import {DictionaryController} from './settings/dictionary-controller.js';
 import {DictionaryImportController} from './settings/dictionary-import-controller.js';
@@ -31,10 +30,12 @@ import {SettingsController} from './settings/settings-controller.js';
 import {SettingsDisplayController} from './settings/settings-display-controller.js';
 import {StatusFooter} from './settings/status-footer.js';
 
-/** */
-async function setupEnvironmentInfo() {
+/**
+ * @param {import('../comm/api.js').API} api
+ */
+async function setupEnvironmentInfo(api) {
     const {manifest_version: manifestVersion} = chrome.runtime.getManifest();
-    const {browser, platform} = await yomitan.api.getEnvironmentInfo();
+    const {browser, platform} = await api.getEnvironmentInfo();
     document.documentElement.dataset.browser = browser;
     document.documentElement.dataset.os = platform.os;
     document.documentElement.dataset.manifestVersion = `${manifestVersion}`;
@@ -48,63 +49,54 @@ async function setupGenericSettingsController(genericSettingController) {
     await genericSettingController.refresh();
 }
 
-/** Entry point. */
-async function main() {
-    try {
-        const documentFocusController = new DocumentFocusController();
-        documentFocusController.prepare();
+await Application.main(async (application) => {
+    const documentFocusController = new DocumentFocusController();
+    documentFocusController.prepare();
 
-        const extensionContentController = new ExtensionContentController();
-        extensionContentController.prepare();
+    const extensionContentController = new ExtensionContentController();
+    extensionContentController.prepare();
 
-        /** @type {HTMLElement} */
-        const statusFooterElement = querySelectorNotNull(document, '.status-footer-container');
-        const statusFooter = new StatusFooter(statusFooterElement);
-        statusFooter.prepare();
+    /** @type {HTMLElement} */
+    const statusFooterElement = querySelectorNotNull(document, '.status-footer-container');
+    const statusFooter = new StatusFooter(statusFooterElement);
+    statusFooter.prepare();
 
-        await yomitan.prepare();
+    setupEnvironmentInfo(application.api);
 
-        setupEnvironmentInfo();
+    chrome.storage.session.get({needsCustomTemplatesWarning: false}).then((result) => {
+        if (result.needsCustomTemplatesWarning) {
+            document.documentElement.dataset.warnCustomTemplates = 'true';
+            chrome.storage.session.remove(['needsCustomTemplatesWarning']);
+        }
+    });
 
-        chrome.storage.session.get({'needsCustomTemplatesWarning': false}).then((result) => {
-            if (result.needsCustomTemplatesWarning) {
-                document.documentElement.dataset.warnCustomTemplates = 'true';
-                chrome.storage.session.remove(['needsCustomTemplatesWarning']);
-            }
-        });
+    const preparePromises = [];
 
-        const preparePromises = [];
+    const modalController = new ModalController();
+    modalController.prepare();
 
-        const modalController = new ModalController();
-        modalController.prepare();
+    const settingsController = new SettingsController(application);
+    await settingsController.prepare();
 
-        const settingsController = new SettingsController();
-        await settingsController.prepare();
+    const dictionaryController = new DictionaryController(settingsController, modalController, statusFooter);
+    dictionaryController.prepare();
 
-        const dictionaryController = new DictionaryController(settingsController, modalController, statusFooter);
-        dictionaryController.prepare();
+    const dictionaryImportController = new DictionaryImportController(settingsController, modalController, statusFooter);
+    dictionaryImportController.prepare();
 
-        const dictionaryImportController = new DictionaryImportController(settingsController, modalController, statusFooter);
-        dictionaryImportController.prepare();
+    const genericSettingController = new GenericSettingController(settingsController);
+    preparePromises.push(setupGenericSettingsController(genericSettingController));
 
-        const genericSettingController = new GenericSettingController(settingsController);
-        preparePromises.push(setupGenericSettingsController(genericSettingController));
+    const simpleScanningInputController = new ScanInputsSimpleController(settingsController);
+    simpleScanningInputController.prepare();
 
-        const simpleScanningInputController = new ScanInputsSimpleController(settingsController);
-        simpleScanningInputController.prepare();
+    const recommendedPermissionsController = new RecommendedPermissionsController(settingsController);
+    recommendedPermissionsController.prepare();
 
-        const recommendedPermissionsController = new RecommendedPermissionsController(settingsController);
-        recommendedPermissionsController.prepare();
+    await Promise.all(preparePromises);
 
-        await Promise.all(preparePromises);
+    document.documentElement.dataset.loaded = 'true';
 
-        document.documentElement.dataset.loaded = 'true';
-
-        const settingsDisplayController = new SettingsDisplayController(settingsController, modalController);
-        settingsDisplayController.prepare();
-    } catch (e) {
-        log.error(e);
-    }
-}
-
-await main();
+    const settingsDisplayController = new SettingsDisplayController(settingsController, modalController);
+    settingsDisplayController.prepare();
+});

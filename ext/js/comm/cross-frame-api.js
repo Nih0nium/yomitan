@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2020-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,11 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {EventDispatcher, EventListenerCollection, log} from '../core.js';
 import {extendApiMap, invokeApiMapHandler} from '../core/api-map.js';
+import {EventDispatcher} from '../core/event-dispatcher.js';
+import {EventListenerCollection} from '../core/event-listener-collection.js';
 import {ExtensionError} from '../core/extension-error.js';
 import {parseJson} from '../core/json.js';
-import {yomitan} from '../yomitan.js';
+import {log} from '../core/logger.js';
 
 /**
  * @augments EventDispatcher<import('cross-frame-api').CrossFrameAPIPortEvents>
@@ -288,7 +289,14 @@ export class CrossFrameAPIPort extends EventDispatcher {
 }
 
 export class CrossFrameAPI {
-    constructor() {
+    /**
+     * @param {import('../comm/api.js').API} api
+     * @param {?number} tabId
+     * @param {?number} frameId
+     */
+    constructor(api, tabId, frameId) {
+        /** @type {import('../comm/api.js').API} */
+        this._api = api;
         /** @type {number} */
         this._ackTimeout = 3000; // 3 seconds
         /** @type {number} */
@@ -300,15 +308,14 @@ export class CrossFrameAPI {
         /** @type {(port: CrossFrameAPIPort) => void} */
         this._onDisconnectBind = this._onDisconnect.bind(this);
         /** @type {?number} */
-        this._tabId = null;
+        this._tabId = tabId;
         /** @type {?number} */
-        this._frameId = null;
+        this._frameId = frameId;
     }
 
     /** */
-    async prepare() {
+    prepare() {
         chrome.runtime.onConnect.addListener(this._onConnect.bind(this));
-        ({tabId: this._tabId = null, frameId: this._frameId = null} = await yomitan.api.frameInformationGet());
     }
 
     /**
@@ -403,13 +410,14 @@ export class CrossFrameAPI {
         }
         return await this._createCommPort(otherTabId, otherFrameId);
     }
+
     /**
      * @param {number} otherTabId
      * @param {number} otherFrameId
      * @returns {Promise<CrossFrameAPIPort>}
      */
     async _createCommPort(otherTabId, otherFrameId) {
-        await yomitan.api.openCrossFramePort(otherTabId, otherFrameId);
+        await this._api.openCrossFramePort(otherTabId, otherFrameId);
 
         const tabPorts = this._commPorts.get(otherTabId);
         if (typeof tabPorts !== 'undefined') {

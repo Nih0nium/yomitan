@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2017-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -18,16 +18,20 @@
 
 import {ThemeController} from '../app/theme-controller.js';
 import {FrameEndpoint} from '../comm/frame-endpoint.js';
-import {DynamicProperty, EventDispatcher, EventListenerCollection, clone, deepEqual, log, promiseTimeout} from '../core.js';
 import {extendApiMap, invokeApiMapHandler} from '../core/api-map.js';
+import {DynamicProperty} from '../core/dynamic-property.js';
+import {EventDispatcher} from '../core/event-dispatcher.js';
+import {EventListenerCollection} from '../core/event-listener-collection.js';
 import {ExtensionError} from '../core/extension-error.js';
+import {log} from '../core/logger.js';
 import {toError} from '../core/to-error.js';
+import {clone, deepEqual, promiseTimeout} from '../core/utilities.js';
 import {PopupMenu} from '../dom/popup-menu.js';
 import {querySelectorNotNull} from '../dom/query-selector.js';
 import {ScrollElement} from '../dom/scroll-element.js';
+import {TextSourceGenerator} from '../dom/text-source-generator.js';
 import {HotkeyHelpController} from '../input/hotkey-help-controller.js';
 import {TextScanner} from '../language/text-scanner.js';
-import {yomitan} from '../yomitan.js';
 import {DisplayContentManager} from './display-content-manager.js';
 import {DisplayGenerator} from './display-generator.js';
 import {DisplayHistory} from './display-history.js';
@@ -41,23 +45,23 @@ import {QueryParser} from './query-parser.js';
  */
 export class Display extends EventDispatcher {
     /**
+     * @param {import('../application.js').Application} application
      * @param {number|undefined} tabId
      * @param {number|undefined} frameId
      * @param {import('display').DisplayPageType} pageType
-     * @param {import('../language/sandbox/japanese-util.js').JapaneseUtil} japaneseUtil
      * @param {import('../dom/document-focus-controller.js').DocumentFocusController} documentFocusController
      * @param {import('../input/hotkey-handler.js').HotkeyHandler} hotkeyHandler
      */
-    constructor(tabId, frameId, pageType, japaneseUtil, documentFocusController, hotkeyHandler) {
+    constructor(application, tabId, frameId, pageType, documentFocusController, hotkeyHandler) {
         super();
+        /** @type {import('../application.js').Application} */
+        this._application = application;
         /** @type {number|undefined} */
         this._tabId = tabId;
         /** @type {number|undefined} */
         this._frameId = frameId;
         /** @type {import('display').DisplayPageType} */
         this._pageType = pageType;
-        /** @type {import('../language/sandbox/japanese-util.js').JapaneseUtil} */
-        this._japaneseUtil = japaneseUtil;
         /** @type {import('../dom/document-focus-controller.js').DocumentFocusController} */
         this._documentFocusController = documentFocusController;
         /** @type {import('../input/hotkey-handler.js').HotkeyHandler} */
@@ -86,7 +90,6 @@ export class Display extends EventDispatcher {
         this._hotkeyHelpController = new HotkeyHelpController();
         /** @type {DisplayGenerator} */
         this._displayGenerator = new DisplayGenerator({
-            japaneseUtil,
             contentManager: this._contentManager,
             hotkeyHelpController: this._hotkeyHelpController
         });
@@ -126,10 +129,13 @@ export class Display extends EventDispatcher {
         this._queryParserVisibleOverride = null;
         /** @type {HTMLElement} */
         this._queryParserContainer = querySelectorNotNull(document, '#query-parser-container');
+        /** @type {TextSourceGenerator} */
+        this._textSourceGenerator = new TextSourceGenerator();
         /** @type {QueryParser} */
         this._queryParser = new QueryParser({
+            api: application.api,
             getSearchContext: this._getSearchContext.bind(this),
-            japaneseUtil
+            textSourceGenerator: this._textSourceGenerator
         });
         /** @type {HTMLElement} */
         this._contentScrollElement = querySelectorNotNull(document, '#content-scroll');
@@ -160,7 +166,7 @@ export class Display extends EventDispatcher {
         /** @type {boolean} */
         this._childrenSupported = true;
         /** @type {?FrameEndpoint} */
-        this._frameEndpoint = (pageType === 'popup' ? new FrameEndpoint() : null);
+        this._frameEndpoint = (pageType === 'popup' ? new FrameEndpoint(this._application.api) : null);
         /** @type {?import('environment').Browser} */
         this._browser = null;
         /** @type {?HTMLTextAreaElement} */
@@ -194,7 +200,7 @@ export class Display extends EventDispatcher {
         /** @type {ThemeController} */
         this._themeController = new ThemeController(document.documentElement);
 
-        /* eslint-disable no-multi-spaces */
+        /* eslint-disable @stylistic/no-multi-spaces */
         this._hotkeyHandler.registerActions([
             ['close',             () => { this._onHotkeyClose(); }],
             ['nextEntry',         this._onHotkeyActionMoveRelative.bind(this, 1)],
@@ -218,7 +224,12 @@ export class Display extends EventDispatcher {
         this.registerWindowMessageHandlers([
             ['displayExtensionUnloaded', this._onMessageExtensionUnloaded.bind(this)]
         ]);
-        /* eslint-enable no-multi-spaces */
+        /* eslint-enable @stylistic/no-multi-spaces */
+    }
+
+    /** @type {import('../application.js').Application} */
+    get application() {
+        return this._application;
     }
 
     /** @type {DisplayGenerator} */
@@ -234,11 +245,6 @@ export class Display extends EventDispatcher {
     set queryParserVisible(value) {
         this._queryParserVisible = value;
         this._updateQueryParser();
-    }
-
-    /** @type {import('../language/sandbox/japanese-util.js').JapaneseUtil} */
-    get japaneseUtil() {
-        return this._japaneseUtil;
     }
 
     /** @type {number} */
@@ -309,7 +315,7 @@ export class Display extends EventDispatcher {
 
         // State setup
         const {documentElement} = document;
-        const {browser} = await yomitan.api.getEnvironmentInfo();
+        const {browser} = await this._application.api.getEnvironmentInfo();
         this._browser = browser;
 
         if (documentElement !== null) {
@@ -317,8 +323,8 @@ export class Display extends EventDispatcher {
         }
 
         // Prepare
-        await this._hotkeyHelpController.prepare();
-        await this._displayGenerator.prepare();
+        await this._hotkeyHelpController.prepare(this._application.api);
+        await this._displayGenerator.prepare(this._application.api);
         this._queryParser.prepare();
         this._history.prepare();
         this._optionToggleHotkeyHandler.prepare();
@@ -327,8 +333,8 @@ export class Display extends EventDispatcher {
         this._history.on('stateChanged', this._onStateChanged.bind(this));
         this._queryParser.on('searched', this._onQueryParserSearch.bind(this));
         this._progressIndicatorVisible.on('change', this._onProgressIndicatorVisibleChanged.bind(this));
-        yomitan.on('extensionUnloaded', this._onExtensionUnloaded.bind(this));
-        yomitan.crossFrame.registerHandlers([
+        this._application.on('extensionUnloaded', this._onExtensionUnloaded.bind(this));
+        this._application.crossFrame.registerHandlers([
             ['displayPopupMessage1', this._onDisplayPopupMessage1.bind(this)],
             ['displayPopupMessage2', this._onDisplayPopupMessage2.bind(this)]
         ]);
@@ -386,7 +392,7 @@ export class Display extends EventDispatcher {
      * @param {Error} error
      */
     onError(error) {
-        if (yomitan.isExtensionUnloaded) { return; }
+        if (this._application.webExtension.unloaded) { return; }
         log.error(error);
     }
 
@@ -414,7 +420,7 @@ export class Display extends EventDispatcher {
 
     /** */
     async updateOptions() {
-        const options = await yomitan.api.optionsGet(this.getOptionsContext());
+        const options = await this._application.api.optionsGet(this.getOptionsContext());
         const {scanning: scanningOptions, sentenceParsing: sentenceParsingOptions} = options;
         this._options = options;
 
@@ -588,7 +594,7 @@ export class Display extends EventDispatcher {
         if (typeof this._contentOriginTabId !== 'number' || typeof this._contentOriginFrameId !== 'number') {
             throw new Error('No content origin is assigned');
         }
-        return await yomitan.crossFrame.invokeTab(this._contentOriginTabId, this._contentOriginFrameId, action, params);
+        return await this._application.crossFrame.invokeTab(this._contentOriginTabId, this._contentOriginFrameId, action, params);
     }
 
     /**
@@ -601,7 +607,7 @@ export class Display extends EventDispatcher {
         if (this._parentFrameId === null || this._parentFrameId === this._frameId) {
             throw new Error('Invalid parent frame');
         }
-        return await yomitan.crossFrame.invoke(this._parentFrameId, action, params);
+        return await this._application.crossFrame.invoke(this._parentFrameId, action, params);
     }
 
     /**
@@ -723,8 +729,7 @@ export class Display extends EventDispatcher {
 
     /** @type {import('display').WindowApiHandler<'displayExtensionUnloaded'>} */
     _onMessageExtensionUnloaded() {
-        if (yomitan.isExtensionUnloaded) { return; }
-        yomitan.triggerExtensionUnloaded();
+        this._application.webExtension.triggerUnloaded();
     }
 
     // Private
@@ -801,8 +806,10 @@ export class Display extends EventDispatcher {
         const historyMode = (
             eventType === 'click' ||
             !(typeof historyState === 'object' && historyState !== null) ||
-            historyState.cause !== 'queryParser'
-        ) ? 'new' : 'overwrite';
+            historyState.cause !== 'queryParser' ?
+            'new' :
+            'overwrite'
+        );
         /** @type {import('display').ContentDetails} */
         const details = {
             focus: false,
@@ -903,7 +910,7 @@ export class Display extends EventDispatcher {
             const element = /** @type {Element} */ (e.currentTarget);
             let query = element.textContent;
             if (query === null) { query = ''; }
-            const dictionaryEntries = await yomitan.api.kanjiFind(query, optionsContext);
+            const dictionaryEntries = await this._application.api.kanjiFind(query, optionsContext);
             /** @type {import('display').ContentDetails} */
             const details = {
                 focus: false,
@@ -1139,7 +1146,7 @@ export class Display extends EventDispatcher {
      */
     async _findDictionaryEntries(isKanji, source, wildcardsEnabled, optionsContext) {
         if (isKanji) {
-            const dictionaryEntries = await yomitan.api.kanjiFind(source, optionsContext);
+            const dictionaryEntries = await this._application.api.kanjiFind(source, optionsContext);
             return dictionaryEntries;
         } else {
             /** @type {import('api').FindTermsDetails} */
@@ -1158,7 +1165,7 @@ export class Display extends EventDispatcher {
                 }
             }
 
-            const {dictionaryEntries} = await yomitan.api.termsFind(source, findDetails, optionsContext);
+            const {dictionaryEntries} = await this._application.api.termsFind(source, findDetails, optionsContext);
             return dictionaryEntries;
         }
     }
@@ -1643,7 +1650,7 @@ export class Display extends EventDispatcher {
 
     /** */
     _closePopups() {
-        yomitan.triggerClosePopups();
+        this._application.triggerClosePopups();
     }
 
     /**
@@ -1714,11 +1721,12 @@ export class Display extends EventDispatcher {
             import('../app/frontend.js')
         ]);
 
-        const popupFactory = new PopupFactory(this._frameId);
+        const popupFactory = new PopupFactory(this._application, this._frameId);
         popupFactory.prepare();
 
         /** @type {import('frontend').ConstructorDetails} */
         const setupNestedPopupsOptions = {
+            application: this._application,
             useProxyPopup,
             parentPopupId,
             parentFrameId,
@@ -1831,18 +1839,21 @@ export class Display extends EventDispatcher {
 
         if (this._contentTextScanner === null) {
             this._contentTextScanner = new TextScanner({
+                api: this._application.api,
                 node: window,
                 getSearchContext: this._getSearchContext.bind(this),
                 searchTerms: true,
                 searchKanji: false,
                 searchOnClick: true,
-                searchOnClickOnly: true
+                searchOnClickOnly: true,
+                textSourceGenerator: this._textSourceGenerator
             });
             this._contentTextScanner.includeSelector = '.click-scannable,.click-scannable *';
             this._contentTextScanner.excludeSelector = '.scan-disable,.scan-disable *';
             this._contentTextScanner.prepare();
             this._contentTextScanner.on('clear', this._onContentTextScannerClear.bind(this));
-            this._contentTextScanner.on('searched', this._onContentTextScannerSearched.bind(this));
+            this._contentTextScanner.on('searchSuccess', this._onContentTextScannerSearchSuccess.bind(this));
+            this._contentTextScanner.on('searchError', this._onContentTextScannerSearchError.bind(this));
         }
 
         const {scanning: scanningOptions, sentenceParsing: sentenceParsingOptions} = options;
@@ -1887,15 +1898,9 @@ export class Display extends EventDispatcher {
     }
 
     /**
-     * @param {import('text-scanner').SearchedEventDetails} details
+     * @param {import('text-scanner').EventArgument<'searchSuccess'>} details
      */
-    _onContentTextScannerSearched({type, dictionaryEntries, sentence, textSource, optionsContext, error}) {
-        if (error !== null && !yomitan.isExtensionUnloaded) {
-            log.error(error);
-        }
-
-        if (type === null) { return; }
-
+    _onContentTextScannerSearchSuccess({type, dictionaryEntries, sentence, textSource, optionsContext}) {
         const query = textSource.text();
         const url = window.location.href;
         const documentTitle = document.title;
@@ -1925,10 +1930,24 @@ export class Display extends EventDispatcher {
     }
 
     /**
+     * @param {import('text-scanner').EventArgument<'searchError'>} details
+     */
+    _onContentTextScannerSearchError({error}) {
+        if (!this._application.webExtension.unloaded) {
+            log.error(error);
+        }
+    }
+
+    /**
      * @type {import('display').GetSearchContextCallback}
      */
     _getSearchContext() {
-        return {optionsContext: this.getOptionsContext()};
+        return {
+            optionsContext: this.getOptionsContext(),
+            detail: {
+                documentTitle: document.title
+            }
+        };
     }
 
     /**

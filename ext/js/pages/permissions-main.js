@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2020-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,10 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {log, promiseTimeout} from '../core.js';
+import {Application} from '../application.js';
+import {promiseTimeout} from '../core/utilities.js';
 import {DocumentFocusController} from '../dom/document-focus-controller.js';
 import {querySelectorNotNull} from '../dom/query-selector.js';
-import {yomitan} from '../yomitan.js';
 import {ExtensionContentController} from './common/extension-content-controller.js';
 import {ModalController} from './settings/modal-controller.js';
 import {PermissionsOriginController} from './settings/permissions-origin-controller.js';
@@ -29,11 +29,11 @@ import {SettingsController} from './settings/settings-controller.js';
 import {SettingsDisplayController} from './settings/settings-display-controller.js';
 
 /**
- * @returns {Promise<void>}
+ * @param {import('../comm/api.js').API} api
  */
-async function setupEnvironmentInfo() {
+async function setupEnvironmentInfo(api) {
     const {manifest_version: manifestVersion} = chrome.runtime.getManifest();
-    const {browser, platform} = await yomitan.api.getEnvironmentInfo();
+    const {browser, platform} = await api.getEnvironmentInfo();
     document.documentElement.dataset.browser = browser;
     document.documentElement.dataset.os = platform.os;
     document.documentElement.dataset.manifestVersion = `${manifestVersion}`;
@@ -86,61 +86,52 @@ function setupPermissionsToggles() {
     }
 }
 
-/** Entry point. */
-async function main() {
-    try {
-        const documentFocusController = new DocumentFocusController();
-        documentFocusController.prepare();
+await Application.main(async (application) => {
+    const documentFocusController = new DocumentFocusController();
+    documentFocusController.prepare();
 
-        const extensionContentController = new ExtensionContentController();
-        extensionContentController.prepare();
+    const extensionContentController = new ExtensionContentController();
+    extensionContentController.prepare();
 
-        setupPermissionsToggles();
+    setupPermissionsToggles();
 
-        await yomitan.prepare();
+    setupEnvironmentInfo(application.api);
 
-        setupEnvironmentInfo();
+    /** @type {HTMLInputElement} */
+    const permissionCheckbox1 = querySelectorNotNull(document, '#permission-checkbox-allow-in-private-windows');
+    /** @type {HTMLInputElement} */
+    const permissionCheckbox2 = querySelectorNotNull(document, '#permission-checkbox-allow-file-url-access');
+    /** @type {HTMLInputElement[]} */
+    const permissionsCheckboxes = [permissionCheckbox1, permissionCheckbox2];
 
-        /** @type {HTMLInputElement} */
-        const permissionCheckbox1 = querySelectorNotNull(document, '#permission-checkbox-allow-in-private-windows');
-        /** @type {HTMLInputElement} */
-        const permissionCheckbox2 = querySelectorNotNull(document, '#permission-checkbox-allow-file-url-access');
-        /** @type {HTMLInputElement[]} */
-        const permissionsCheckboxes = [permissionCheckbox1, permissionCheckbox2];
+    const permissions = await Promise.all([
+        isAllowedIncognitoAccess(),
+        isAllowedFileSchemeAccess()
+    ]);
 
-        const permissions = await Promise.all([
-            isAllowedIncognitoAccess(),
-            isAllowedFileSchemeAccess()
-        ]);
-
-        for (let i = 0, ii = permissions.length; i < ii; ++i) {
-            permissionsCheckboxes[i].checked = permissions[i];
-        }
-
-        const modalController = new ModalController();
-        modalController.prepare();
-
-        const settingsController = new SettingsController();
-        await settingsController.prepare();
-
-        const permissionsToggleController = new PermissionsToggleController(settingsController);
-        permissionsToggleController.prepare();
-
-        const permissionsOriginController = new PermissionsOriginController(settingsController);
-        permissionsOriginController.prepare();
-
-        const persistentStorageController = new PersistentStorageController();
-        persistentStorageController.prepare();
-
-        await promiseTimeout(100);
-
-        document.documentElement.dataset.loaded = 'true';
-
-        const settingsDisplayController = new SettingsDisplayController(settingsController, modalController);
-        settingsDisplayController.prepare();
-    } catch (e) {
-        log.error(e);
+    for (let i = 0, ii = permissions.length; i < ii; ++i) {
+        permissionsCheckboxes[i].checked = permissions[i];
     }
-}
 
-await main();
+    const modalController = new ModalController();
+    modalController.prepare();
+
+    const settingsController = new SettingsController(application);
+    await settingsController.prepare();
+
+    const permissionsToggleController = new PermissionsToggleController(settingsController);
+    permissionsToggleController.prepare();
+
+    const permissionsOriginController = new PermissionsOriginController(settingsController);
+    permissionsOriginController.prepare();
+
+    const persistentStorageController = new PersistentStorageController(application);
+    persistentStorageController.prepare();
+
+    await promiseTimeout(100);
+
+    document.documentElement.dataset.loaded = 'true';
+
+    const settingsDisplayController = new SettingsDisplayController(settingsController, modalController);
+    settingsDisplayController.prepare();
+});

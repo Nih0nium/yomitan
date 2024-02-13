@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -107,7 +107,7 @@ export type FindTermsOptions = {
     /**
      * An iterable sequence of text replacements to be applied during the term lookup process.
      */
-    textReplacements: (FindTermsTextReplacement[] | null)[];
+    textReplacements: FindTermsTextReplacements;
     /**
      * The mapping of dictionaries to search for terms in.
      * The key is the dictionary name.
@@ -158,6 +158,11 @@ export type FindTermsTextReplacement = {
 };
 
 /**
+ * Multiple text replacements.
+ */
+export type FindTermsTextReplacements = (FindTermsTextReplacement[] | null)[];
+
+/**
  * Details about a dictionary.
  */
 export type FindTermDictionary = {
@@ -177,6 +182,10 @@ export type FindTermDictionary = {
      * Whether this dictionary's part of speech rules should be used to filter results.
      */
     partsOfSpeechFilter: boolean;
+    /**
+     * Whether to use the deinflections from this dictionary.
+     */
+    useDeinflections: boolean;
 };
 
 export type TermEnabledDictionaryMap = Map<string, FindTermDictionary>;

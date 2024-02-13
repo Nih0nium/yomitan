@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
  */
 
 import type * as DictionaryDatabase from './dictionary-database';
+import type * as Dictionary from './dictionary';
 import type * as Translation from './translation';
 
 export type TextDeinflectionOptions = [
@@ -38,28 +39,11 @@ export type TextDeinflectionOptionsArrays = [
     emphatic: [collapseEmphatic: boolean, collapseEmphaticFull: boolean][],
 ];
 
-export enum DeinflectionRuleFlags {
-    None = 0x0,
-    VerbIchidan = 0b00000001,
-    VerbGodan = 0b00000010,
-    VerbSuru = 0b00000100,
-    VerbKuru = 0b00001000,
-    VerbZuru = 0b00010000,
-    AdjectiveI = 0b00100000,
-    IruEndingIntermediate = 0b01000000,
-}
-
-export type Deinflection = {
-    term: string;
-    rules: DeinflectionRuleFlags;
-    reasons: string[];
-};
-
 export type DatabaseDeinflection = {
     originalText: string;
     transformedText: string;
     deinflectedText: string;
-    rules: DeinflectionRuleFlags;
-    reasons: string[];
+    conditions: number;
+    inflectionRuleChainCandidates: Dictionary.InflectionRuleChainCandidate[];
     databaseEntries: DictionaryDatabase.TermEntry[];
 };

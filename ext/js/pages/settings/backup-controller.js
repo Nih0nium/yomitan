@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2019-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,13 +17,14 @@
  */
 
 import {Dexie} from '../../../lib/dexie.js';
-import {isObject, log} from '../../core.js';
 import {parseJson} from '../../core/json.js';
+import {log} from '../../core/logger.js';
 import {toError} from '../../core/to-error.js';
+import {isObject} from '../../core/utilities.js';
 import {OptionsUtil} from '../../data/options-util.js';
-import {ArrayBufferUtil} from '../../data/sandbox/array-buffer-util.js';
+import {getAllPermissions} from '../../data/permissions-util.js';
+import {arrayBufferUtf8Decode} from '../../data/sandbox/array-buffer-util.js';
 import {querySelectorNotNull} from '../../dom/query-selector.js';
-import {yomitan} from '../../yomitan.js';
 import {DictionaryController} from './dictionary-controller.js';
 
 export class BackupController {
@@ -132,9 +133,9 @@ export class BackupController {
      */
     async _getSettingsExportData(date) {
         const optionsFull = await this._settingsController.getOptionsFull();
-        const environment = await yomitan.api.getEnvironmentInfo();
-        const fieldTemplatesDefault = await yomitan.api.getDefaultAnkiFieldTemplates();
-        const permissions = await this._settingsController.permissionsUtil.getAllPermissions();
+        const environment = await this._settingsController.application.api.getEnvironmentInfo();
+        const fieldTemplatesDefault = await this._settingsController.application.api.getDefaultAnkiFieldTemplates();
+        const permissions = await getAllPermissions();
 
         // Format options
         for (const {options} of optionsFull.profiles) {
@@ -424,7 +425,7 @@ export class BackupController {
     async _importSettingsFile(file) {
         if (this._optionsUtil === null) { throw new Error('OptionsUtil invalid'); }
 
-        const dataString = ArrayBufferUtil.arrayBufferUtf8Decode(await this._readFileArrayBuffer(file));
+        const dataString = arrayBufferUtf8Decode(await this._readFileArrayBuffer(file));
         /** @type {import('backup-controller').BackupData} */
         const data = parseJson(dataString);
 
@@ -578,7 +579,9 @@ export class BackupController {
      */
     async _exportDatabase(databaseName) {
         const db = await new Dexie(databaseName).open();
-        const blob = await db.export({progressCallback: this._databaseExportProgressCallback});
+        const blob = await db.export({
+            progressCallback: this._databaseExportProgressCallback.bind(this)
+        });
         await db.close();
         return blob;
     }
@@ -638,14 +641,16 @@ export class BackupController {
     }
 
     /**
-     * @param {string} databaseName
+     * @param {string} _databaseName
      * @param {File} file
      */
-    async _importDatabase(databaseName, file) {
-        await yomitan.api.purgeDatabase();
-        await Dexie.import(file, {progressCallback: this._databaseImportProgressCallback});
-        yomitan.api.triggerDatabaseUpdated('dictionary', 'import');
-        yomitan.triggerStorageChanged();
+    async _importDatabase(_databaseName, file) {
+        await this._settingsController.application.api.purgeDatabase();
+        await Dexie.import(file, {
+            progressCallback: this._databaseImportProgressCallback.bind(this)
+        });
+        this._settingsController.application.api.triggerDatabaseUpdated('dictionary', 'import');
+        this._settingsController.application.triggerStorageChanged();
     }
 
     /** */

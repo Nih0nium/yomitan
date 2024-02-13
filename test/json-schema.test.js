@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2020-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,8 +15,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-/* eslint-disable no-multi-spaces */
 
 import {describe, expect, test} from 'vitest';
 import {parseJson} from '../dev/json.js';
@@ -125,6 +123,7 @@ function testValidate1() {
 /** */
 function testValidate2() {
     describe('Validate2', () => {
+        /* eslint-disable @stylistic/no-multi-spaces */
         /** @type {{schema: import('ext/json-schema').Schema, inputs: {expected: boolean, value: unknown}[]}[]} */
         const data = [
             // String tests
@@ -518,9 +517,10 @@ function testValidate2() {
                 ]
             }
         ];
+        /* eslint-enable @stylistic/no-multi-spaces */
 
         describe.each(data)('Schema %#', ({schema, inputs}) => {
-            test.each(inputs)(`schemaValidate(${schema}, $value) -> $expected`, ({expected, value}) => {
+            test.each(inputs)(`schemaValidate(${JSON.stringify(schema)}, $value) -> $expected`, ({expected, value}) => {
                 const actual = schemaValidate(schema, value);
                 expect(actual).toStrictEqual(expected);
             });
@@ -878,7 +878,7 @@ function testGetValidValueOrDefault1() {
         ];
 
         describe.each(data)('Schema %#', ({schema, inputs}) => {
-            test.each(inputs)(`getValidValueOrDefault(${schema}, %o) -> %o`, (value, expected) => {
+            test.each(inputs)(`getValidValueOrDefault(${JSON.stringify(schema)}, %o) -> %o`, (value, expected) => {
                 const actual = getValidValueOrDefault(schema, value);
                 expect(actual).toStrictEqual(expected);
             });
@@ -890,6 +890,7 @@ function testGetValidValueOrDefault1() {
 /** */
 function testProxy1() {
     describe('Proxy1', () => {
+        /* eslint-disable @stylistic/no-multi-spaces */
         /** @type {{schema: import('ext/json-schema').Schema, tests: {error: boolean, value?: import('ext/json-schema').Value, action: (value: import('core').SafeAny) => void}[]}[]} */
         const data = [
             // Object tests
@@ -984,11 +985,15 @@ function testProxy1() {
                     {error: true,  value: ['default'], action: (value) => { value[0] = null; }},
                     {error: false, value: ['default'], action: (value) => { delete value[0]; }},
                     {error: false, value: ['default'], action: (value) => { value[1] = 'string'; }},
-                    {error: false, value: ['default'], action: (value) => {
-                        value[1] = 'string';
-                        if (value.length !== 2) { throw new Error(`Invalid length; expected=2; actual=${value.length}`); }
-                        if (typeof value.push !== 'function') { throw new Error(`Invalid push; expected=function; actual=${typeof value.push}`); }
-                    }}
+                    {
+                        error: false,
+                        value: ['default'],
+                        action: (value) => {
+                            value[1] = 'string';
+                            if (value.length !== 2) { throw new Error(`Invalid length; expected=2; actual=${value.length}`); }
+                            if (typeof value.push !== 'function') { throw new Error(`Invalid push; expected=function; actual=${typeof value.push}`); }
+                        }
+                    }
                 ]
             },
 
@@ -1019,6 +1024,7 @@ function testProxy1() {
                 ]
             }
         ];
+        /* eslint-enable @stylistic/no-multi-spaces */
 
         describe.each(data)('Schema %#', ({schema, tests}) => {
             test.each(tests)('proxy %#', ({error, value, action}) => {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2020-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,10 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {log} from '../../core.js';
+import {Application} from '../../application.js';
 import {DocumentFocusController} from '../../dom/document-focus-controller.js';
 import {querySelectorNotNull} from '../../dom/query-selector.js';
-import {yomitan} from '../../yomitan.js';
 import {ExtensionContentController} from '../common/extension-content-controller.js';
 import {AnkiController} from './anki-controller.js';
 import {AnkiTemplatesController} from './anki-templates-controller.js';
@@ -58,123 +57,114 @@ async function setupGenericSettingController(genericSettingController) {
     await genericSettingController.refresh();
 }
 
-/** Entry point. */
-async function main() {
-    try {
-        const documentFocusController = new DocumentFocusController();
-        documentFocusController.prepare();
+await Application.main(async (application) => {
+    const documentFocusController = new DocumentFocusController();
+    documentFocusController.prepare();
 
-        const extensionContentController = new ExtensionContentController();
-        extensionContentController.prepare();
+    const extensionContentController = new ExtensionContentController();
+    extensionContentController.prepare();
 
-        /** @type {HTMLElement} */
-        const statusFooterElement = querySelectorNotNull(document, '.status-footer-container');
-        const statusFooter = new StatusFooter(statusFooterElement);
-        statusFooter.prepare();
+    /** @type {HTMLElement} */
+    const statusFooterElement = querySelectorNotNull(document, '.status-footer-container');
+    const statusFooter = new StatusFooter(statusFooterElement);
+    statusFooter.prepare();
 
-        /** @type {?number} */
-        let prepareTimer = window.setTimeout(() => {
-            prepareTimer = null;
-            document.documentElement.dataset.loadingStalled = 'true';
-        }, 1000);
+    /** @type {?number} */
+    let prepareTimer = window.setTimeout(() => {
+        prepareTimer = null;
+        document.documentElement.dataset.loadingStalled = 'true';
+    }, 1000);
 
-        await yomitan.prepare();
-
-        if (prepareTimer !== null) {
-            clearTimeout(prepareTimer);
-            prepareTimer = null;
-        }
-        delete document.documentElement.dataset.loadingStalled;
-
-        const preparePromises = [];
-
-        const modalController = new ModalController();
-        modalController.prepare();
-
-        const settingsController = new SettingsController();
-        await settingsController.prepare();
-
-        const persistentStorageController = new PersistentStorageController();
-        persistentStorageController.prepare();
-
-        const storageController = new StorageController(persistentStorageController);
-        storageController.prepare();
-
-        const dictionaryController = new DictionaryController(settingsController, modalController, statusFooter);
-        dictionaryController.prepare();
-
-        const dictionaryImportController = new DictionaryImportController(settingsController, modalController, statusFooter);
-        dictionaryImportController.prepare();
-
-        const genericSettingController = new GenericSettingController(settingsController);
-        preparePromises.push(setupGenericSettingController(genericSettingController));
-
-        const audioController = new AudioController(settingsController, modalController);
-        audioController.prepare();
-
-        const profileController = new ProfileController(settingsController, modalController);
-        profileController.prepare();
-
-        const settingsBackup = new BackupController(settingsController, modalController);
-        settingsBackup.prepare();
-
-        const ankiController = new AnkiController(settingsController);
-        ankiController.prepare();
-
-        const ankiTemplatesController = new AnkiTemplatesController(settingsController, modalController, ankiController);
-        ankiTemplatesController.prepare();
-
-        const popupPreviewController = new PopupPreviewController(settingsController);
-        popupPreviewController.prepare();
-
-        const scanInputsController = new ScanInputsController(settingsController);
-        scanInputsController.prepare();
-
-        const simpleScanningInputController = new ScanInputsSimpleController(settingsController);
-        simpleScanningInputController.prepare();
-
-        const nestedPopupsController = new NestedPopupsController(settingsController);
-        nestedPopupsController.prepare();
-
-        const permissionsToggleController = new PermissionsToggleController(settingsController);
-        permissionsToggleController.prepare();
-
-        const secondarySearchDictionaryController = new SecondarySearchDictionaryController(settingsController);
-        secondarySearchDictionaryController.prepare();
-
-        const translationTextReplacementsController = new TranslationTextReplacementsController(settingsController);
-        translationTextReplacementsController.prepare();
-
-        const sentenceTerminationCharactersController = new SentenceTerminationCharactersController(settingsController);
-        sentenceTerminationCharactersController.prepare();
-
-        const keyboardShortcutController = new KeyboardShortcutController(settingsController);
-        keyboardShortcutController.prepare();
-
-        const extensionKeyboardShortcutController = new ExtensionKeyboardShortcutController(settingsController);
-        extensionKeyboardShortcutController.prepare();
-
-        const popupWindowController = new PopupWindowController();
-        popupWindowController.prepare();
-
-        const mecabController = new MecabController();
-        mecabController.prepare();
-
-        const collapsibleDictionaryController = new CollapsibleDictionaryController(settingsController);
-        collapsibleDictionaryController.prepare();
-
-        const sortFrequencyDictionaryController = new SortFrequencyDictionaryController(settingsController);
-        sortFrequencyDictionaryController.prepare();
-
-        await Promise.all(preparePromises);
-
-        document.documentElement.dataset.loaded = 'true';
-
-        const settingsDisplayController = new SettingsDisplayController(settingsController, modalController);
-        settingsDisplayController.prepare();
-    } catch (e) {
-        log.error(e);
+    if (prepareTimer !== null) {
+        clearTimeout(prepareTimer);
+        prepareTimer = null;
     }
-}
+    delete document.documentElement.dataset.loadingStalled;
 
-await main();
+    const preparePromises = [];
+
+    const modalController = new ModalController();
+    modalController.prepare();
+
+    const settingsController = new SettingsController(application);
+    await settingsController.prepare();
+
+    const persistentStorageController = new PersistentStorageController(application);
+    persistentStorageController.prepare();
+
+    const storageController = new StorageController(persistentStorageController);
+    storageController.prepare();
+
+    const dictionaryController = new DictionaryController(settingsController, modalController, statusFooter);
+    dictionaryController.prepare();
+
+    const dictionaryImportController = new DictionaryImportController(settingsController, modalController, statusFooter);
+    dictionaryImportController.prepare();
+
+    const genericSettingController = new GenericSettingController(settingsController);
+    preparePromises.push(setupGenericSettingController(genericSettingController));
+
+    const audioController = new AudioController(settingsController, modalController);
+    audioController.prepare();
+
+    const profileController = new ProfileController(settingsController, modalController);
+    profileController.prepare();
+
+    const settingsBackup = new BackupController(settingsController, modalController);
+    settingsBackup.prepare();
+
+    const ankiController = new AnkiController(settingsController);
+    ankiController.prepare();
+
+    const ankiTemplatesController = new AnkiTemplatesController(settingsController, modalController, ankiController);
+    ankiTemplatesController.prepare();
+
+    const popupPreviewController = new PopupPreviewController(settingsController);
+    popupPreviewController.prepare();
+
+    const scanInputsController = new ScanInputsController(settingsController);
+    scanInputsController.prepare();
+
+    const simpleScanningInputController = new ScanInputsSimpleController(settingsController);
+    simpleScanningInputController.prepare();
+
+    const nestedPopupsController = new NestedPopupsController(settingsController);
+    nestedPopupsController.prepare();
+
+    const permissionsToggleController = new PermissionsToggleController(settingsController);
+    permissionsToggleController.prepare();
+
+    const secondarySearchDictionaryController = new SecondarySearchDictionaryController(settingsController);
+    secondarySearchDictionaryController.prepare();
+
+    const translationTextReplacementsController = new TranslationTextReplacementsController(settingsController);
+    translationTextReplacementsController.prepare();
+
+    const sentenceTerminationCharactersController = new SentenceTerminationCharactersController(settingsController);
+    sentenceTerminationCharactersController.prepare();
+
+    const keyboardShortcutController = new KeyboardShortcutController(settingsController);
+    keyboardShortcutController.prepare();
+
+    const extensionKeyboardShortcutController = new ExtensionKeyboardShortcutController(settingsController);
+    extensionKeyboardShortcutController.prepare();
+
+    const popupWindowController = new PopupWindowController(application.api);
+    popupWindowController.prepare();
+
+    const mecabController = new MecabController(application.api);
+    mecabController.prepare();
+
+    const collapsibleDictionaryController = new CollapsibleDictionaryController(settingsController);
+    collapsibleDictionaryController.prepare();
+
+    const sortFrequencyDictionaryController = new SortFrequencyDictionaryController(settingsController);
+    sortFrequencyDictionaryController.prepare();
+
+    await Promise.all(preparePromises);
+
+    document.documentElement.dataset.loaded = 'true';
+
+    const settingsDisplayController = new SettingsDisplayController(settingsController, modalController);
+    settingsDisplayController.prepare();
+});

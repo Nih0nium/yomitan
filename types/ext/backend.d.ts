@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 import type * as Api from './api';
 
 export type DatabaseUpdateType = 'dictionary';
+
 export type DatabaseUpdateCause = 'purge' | 'delete' | 'import';
 
 export type MecabParseResults = [

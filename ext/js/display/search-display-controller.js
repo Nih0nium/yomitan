@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2016-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -18,10 +18,9 @@
 
 import * as wanakana from '../../lib/wanakana.js';
 import {ClipboardMonitor} from '../comm/clipboard-monitor.js';
-import {EventListenerCollection} from '../core.js';
 import {createApiMap, invokeApiMapHandler} from '../core/api-map.js';
+import {EventListenerCollection} from '../core/event-listener-collection.js';
 import {querySelectorNotNull} from '../dom/query-selector.js';
-import {yomitan} from '../yomitan.js';
 
 export class SearchDisplayController {
     /**
@@ -29,10 +28,9 @@ export class SearchDisplayController {
      * @param {number|undefined} frameId
      * @param {import('./display.js').Display} display
      * @param {import('./display-audio.js').DisplayAudio} displayAudio
-     * @param {import('../language/sandbox/japanese-util.js').JapaneseUtil} japaneseUtil
      * @param {import('./search-persistent-state-controller.js').SearchPersistentStateController} searchPersistentStateController
      */
-    constructor(tabId, frameId, display, displayAudio, japaneseUtil, searchPersistentStateController) {
+    constructor(tabId, frameId, display, displayAudio, searchPersistentStateController) {
         /** @type {number|undefined} */
         this._tabId = tabId;
         /** @type {number|undefined} */
@@ -71,9 +69,8 @@ export class SearchDisplayController {
         this._clipboardMonitorEnabled = false;
         /** @type {ClipboardMonitor} */
         this._clipboardMonitor = new ClipboardMonitor({
-            japaneseUtil,
             clipboardReader: {
-                getText: yomitan.api.clipboardGet.bind(yomitan.api)
+                getText: this._display.application.api.clipboardGet.bind(this._display.application.api)
             }
         });
         /** @type {import('application').ApiMap} */
@@ -91,7 +88,7 @@ export class SearchDisplayController {
         this._searchPersistentStateController.on('modeChange', this._onModeChange.bind(this));
 
         chrome.runtime.onMessage.addListener(this._onMessage.bind(this));
-        yomitan.on('optionsUpdated', this._onOptionsUpdated.bind(this));
+        this._display.application.on('optionsUpdated', this._onOptionsUpdated.bind(this));
 
         this._display.on('optionsUpdated', this._onDisplayOptionsUpdated.bind(this));
         this._display.on('contentUpdateStart', this._onContentUpdateStart.bind(this));
@@ -118,6 +115,10 @@ export class SearchDisplayController {
         if (displayOptions !== null) {
             this._onDisplayOptionsUpdated({options: displayOptions});
         }
+
+        const {profiles, profileCurrent} = await this._display.application.api.optionsGetFull();
+
+        this._updateProfileSelect(profiles, profileCurrent);
     }
 
     /**
@@ -299,7 +300,7 @@ export class SearchDisplayController {
             scope: 'profile',
             optionsContext: this._display.getOptionsContext()
         };
-        yomitan.api.modifySettings([modification], 'search');
+        this._display.application.api.modifySettings([modification], 'search');
     }
 
     /**
@@ -314,6 +315,33 @@ export class SearchDisplayController {
     /** */
     _onModeChange() {
         this._updateClipboardMonitorEnabled();
+    }
+
+    /**
+     * @param {Event} event
+     */
+    async _onProfileSelectChange(event) {
+        const node = /** @type {HTMLInputElement} */ (event.currentTarget);
+        const value = parseInt(node.value, 10);
+        const optionsFull = await this._display.application.api.optionsGetFull();
+        if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= optionsFull.profiles.length) {
+            this._setPrimaryProfileIndex(value);
+        }
+    }
+
+    /**
+     * @param {number} value
+     */
+    async _setPrimaryProfileIndex(value) {
+        /** @type {import('settings-modifications').ScopedModificationSet} */
+        const modification = {
+            action: 'set',
+            path: 'profileCurrent',
+            value,
+            scope: 'global',
+            optionsContext: null
+        };
+        await this._display.application.api.modifySettings([modification], 'search');
     }
 
     /**
@@ -432,7 +460,7 @@ export class SearchDisplayController {
             scope: 'profile',
             optionsContext: this._display.getOptionsContext()
         };
-        await yomitan.api.modifySettings([modification], 'search');
+        await this._display.application.api.modifySettings([modification], 'search');
     }
 
     /** */
@@ -548,5 +576,29 @@ export class SearchDisplayController {
         }
         if (element instanceof HTMLElement && element.isContentEditable) { return true; }
         return false;
+    }
+
+    /**
+     * @param {import('settings').Profile[]} profiles
+     * @param {number} profileCurrent
+     */
+    _updateProfileSelect(profiles, profileCurrent) {
+        /** @type {HTMLSelectElement} */
+        const select = querySelectorNotNull(document, '#profile-select');
+        /** @type {HTMLElement} */
+        const optionGroup = querySelectorNotNull(document, '#profile-select-option-group');
+        const fragment = document.createDocumentFragment();
+        for (let i = 0, ii = profiles.length; i < ii; ++i) {
+            const {name} = profiles[i];
+            const option = document.createElement('option');
+            option.textContent = name;
+            option.value = `${i}`;
+            fragment.appendChild(option);
+        }
+        optionGroup.textContent = '';
+        optionGroup.appendChild(fragment);
+        select.value = `${profileCurrent}`;
+
+        select.addEventListener('change', this._onProfileSelectChange.bind(this), false);
     }
 }

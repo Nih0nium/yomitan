@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2016-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {log, stringReverse} from '../core.js';
+import {log} from '../core/logger.js';
+import {stringReverse} from '../core/utilities.js';
 import {Database} from '../data/database.js';
 
 export class DictionaryDatabase {
@@ -36,7 +37,10 @@ export class DictionaryDatabase {
         /** @type {import('dictionary-database').CreateQuery<string>} */
         this._createBoundQuery1 = (item) => IDBKeyRange.bound(item, `${item}\uffff`, false, false);
         /** @type {import('dictionary-database').CreateQuery<string>} */
-        this._createBoundQuery2 = (item) => { item = stringReverse(item); return IDBKeyRange.bound(item, `${item}\uffff`, false, false); };
+        this._createBoundQuery2 = (item) => {
+            item = stringReverse(item);
+            return IDBKeyRange.bound(item, `${item}\uffff`, false, false);
+        };
         /** @type {import('dictionary-database').CreateResult<import('dictionary-database').TermExactRequest, import('dictionary-database').DatabaseTermEntryWithId, import('dictionary-database').TermEntry>} */
         this._createTermBind1 = this._createTermExact.bind(this);
         /** @type {import('dictionary-database').CreateResult<import('dictionary-database').DictionaryAndQueryRequest, import('dictionary-database').DatabaseTermEntryWithId, import('dictionary-database').TermEntry>} */

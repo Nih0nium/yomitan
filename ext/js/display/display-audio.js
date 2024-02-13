@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2021-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,11 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {EventListenerCollection} from '../core.js';
+import {EventListenerCollection} from '../core/event-listener-collection.js';
 import {PopupMenu} from '../dom/popup-menu.js';
 import {querySelectorNotNull} from '../dom/query-selector.js';
 import {AudioSystem} from '../media/audio-system.js';
-import {yomitan} from '../yomitan.js';
 
 export class DisplayAudio {
     /**
@@ -83,7 +82,7 @@ export class DisplayAudio {
     /** */
     prepare() {
         this._audioSystem.prepare();
-        /* eslint-disable no-multi-spaces */
+        /* eslint-disable @stylistic/no-multi-spaces */
         this._display.hotkeyHandler.registerActions([
             ['playAudio',           this._onHotkeyActionPlayAudio.bind(this)],
             ['playAudioFromSource', this._onHotkeyActionPlayAudioFromSource.bind(this)]
@@ -91,7 +90,7 @@ export class DisplayAudio {
         this._display.registerDirectMessageHandlers([
             ['displayAudioClearAutoPlayTimer', this._onMessageClearAutoPlayTimer.bind(this)]
         ]);
-        /* eslint-enable no-multi-spaces */
+        /* eslint-enable @stylistic/no-multi-spaces */
         this._display.on('optionsUpdated', this._onOptionsUpdated.bind(this));
         this._display.on('contentClear', this._onContentClear.bind(this));
         this._display.on('contentUpdateEntry', this._onContentUpdateEntry.bind(this));
@@ -515,8 +514,10 @@ export class DisplayAudio {
             !canToggleOff ||
             primaryCardAudio === null ||
             primaryCardAudio.index !== index ||
-            primaryCardAudio.subIndex !== subIndex
-        ) ? {index: index, subIndex} : null;
+            primaryCardAudio.subIndex !== subIndex ?
+            {index: index, subIndex} :
+            null
+        );
         cacheEntry.primaryCardAudio = primaryCardAudio;
 
         if (menu !== null) {
@@ -676,7 +677,7 @@ export class DisplayAudio {
      */
     async _getTermAudioInfoList(source, term, reading) {
         const sourceData = this._getSourceData(source);
-        const infoList = await yomitan.api.getTermAudioInfoList(sourceData, term, reading);
+        const infoList = await this._display.application.api.getTermAudioInfoList(sourceData, term, reading);
         return infoList.map((info) => ({info, audioPromise: null, audioResolved: false, audio: null}));
     }
 

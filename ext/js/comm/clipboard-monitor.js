@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2020-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,19 +16,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {EventDispatcher} from '../core.js';
+import {EventDispatcher} from '../core/event-dispatcher.js';
+import {isStringPartiallyJapanese} from '../language/ja/japanese.js';
 
 /**
  * @augments EventDispatcher<import('clipboard-monitor').Events>
  */
 export class ClipboardMonitor extends EventDispatcher {
     /**
-     * @param {{japaneseUtil: import('../language/sandbox/japanese-util.js').JapaneseUtil, clipboardReader: import('clipboard-monitor').ClipboardReaderLike}} details
+     * @param {{clipboardReader: import('clipboard-monitor').ClipboardReaderLike}} details
      */
-    constructor({japaneseUtil, clipboardReader}) {
+    constructor({clipboardReader}) {
         super();
-        /** @type {import('../language/sandbox/japanese-util.js').JapaneseUtil} */
-        this._japaneseUtil = japaneseUtil;
         /** @type {import('clipboard-monitor').ClipboardReaderLike} */
         this._clipboardReader = clipboardReader;
         /** @type {?import('core').Timeout} */
@@ -72,7 +71,7 @@ export class ClipboardMonitor extends EventDispatcher {
                 text !== this._previousText
             ) {
                 this._previousText = text;
-                if (canChange && this._japaneseUtil.isStringPartiallyJapanese(text)) {
+                if (canChange && isStringPartiallyJapanese(text)) {
                     this.trigger('change', {text});
                 }
             }

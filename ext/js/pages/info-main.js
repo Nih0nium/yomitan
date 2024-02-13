@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2020-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,10 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {log, promiseTimeout} from '../core.js';
+import {Application} from '../application.js';
+import {promiseTimeout} from '../core/utilities.js';
 import {DocumentFocusController} from '../dom/document-focus-controller.js';
 import {querySelectorNotNull} from '../dom/query-selector.js';
-import {yomitan} from '../yomitan.js';
 import {BackupController} from './settings/backup-controller.js';
 import {SettingsController} from './settings/settings-controller.js';
 
@@ -56,11 +56,13 @@ function getOperatingSystemDisplayName(os) {
     }
 }
 
-/** */
-async function showAnkiConnectInfo() {
+/**
+ * @param {import('../comm/api.js').API} api
+ */
+async function showAnkiConnectInfo(api) {
     let ankiConnectVersion = null;
     try {
-        ankiConnectVersion = await yomitan.api.getAnkiConnectVersion();
+        ankiConnectVersion = await api.getAnkiConnectVersion();
     } catch (e) {
         // NOP
     }
@@ -77,11 +79,13 @@ async function showAnkiConnectInfo() {
     ankiVersionUnknownElement.hidden = (ankiConnectVersion !== null);
 }
 
-/** */
-async function showDictionaryInfo() {
+/**
+ * @param {import('../comm/api.js').API} api
+ */
+async function showDictionaryInfo(api) {
     let dictionaryInfos;
     try {
-        dictionaryInfos = await yomitan.api.getDictionaryInfo();
+        dictionaryInfos = await api.getDictionaryInfo();
     } catch (e) {
         return;
     }
@@ -111,58 +115,49 @@ async function showDictionaryInfo() {
     container.appendChild(fragment);
 }
 
-/** Entry point. */
-async function main() {
-    try {
-        const documentFocusController = new DocumentFocusController();
-        documentFocusController.prepare();
+await Application.main(async (application) => {
+    const documentFocusController = new DocumentFocusController();
+    documentFocusController.prepare();
 
-        const manifest = chrome.runtime.getManifest();
-        const language = chrome.i18n.getUILanguage();
+    const manifest = chrome.runtime.getManifest();
+    const language = chrome.i18n.getUILanguage();
 
-        await yomitan.prepare();
+    const {userAgent} = navigator;
+    const {name, version} = manifest;
+    const {browser, platform: {os}} = await application.api.getEnvironmentInfo();
 
-        const {userAgent} = navigator;
-        const {name, version} = manifest;
-        const {browser, platform: {os}} = await yomitan.api.getEnvironmentInfo();
+    /** @type {HTMLLinkElement} */
+    const thisVersionLink = querySelectorNotNull(document, '#release-notes-this-version-link');
+    const {hrefFormat} = thisVersionLink.dataset;
+    thisVersionLink.href = typeof hrefFormat === 'string' ? hrefFormat.replace(/\{version\}/g, version) : '';
 
-        /** @type {HTMLLinkElement} */
-        const thisVersionLink = querySelectorNotNull(document, '#release-notes-this-version-link');
-        const {hrefFormat} = thisVersionLink.dataset;
-        thisVersionLink.href = typeof hrefFormat === 'string' ? hrefFormat.replace(/\{version\}/g, version) : '';
+    /** @type {HTMLElement} */
+    const versionElement = querySelectorNotNull(document, '#version');
+    /** @type {HTMLElement} */
+    const browserElement = querySelectorNotNull(document, '#browser');
+    /** @type {HTMLElement} */
+    const platformElement = querySelectorNotNull(document, '#platform');
+    /** @type {HTMLElement} */
+    const languageElement = querySelectorNotNull(document, '#language');
+    /** @type {HTMLElement} */
+    const userAgentElement = querySelectorNotNull(document, '#user-agent');
 
-        /** @type {HTMLElement} */
-        const versionElement = querySelectorNotNull(document, '#version');
-        /** @type {HTMLElement} */
-        const browserElement = querySelectorNotNull(document, '#browser');
-        /** @type {HTMLElement} */
-        const platformElement = querySelectorNotNull(document, '#platform');
-        /** @type {HTMLElement} */
-        const languageElement = querySelectorNotNull(document, '#language');
-        /** @type {HTMLElement} */
-        const userAgentElement = querySelectorNotNull(document, '#user-agent');
+    versionElement.textContent = `${name} ${version}`;
+    browserElement.textContent = getBrowserDisplayName(browser);
+    platformElement.textContent = getOperatingSystemDisplayName(os);
+    languageElement.textContent = `${language}`;
+    userAgentElement.textContent = userAgent;
 
-        versionElement.textContent = `${name} ${version}`;
-        browserElement.textContent = getBrowserDisplayName(browser);
-        platformElement.textContent = getOperatingSystemDisplayName(os);
-        languageElement.textContent = `${language}`;
-        userAgentElement.textContent = userAgent;
+    showAnkiConnectInfo(application.api);
+    showDictionaryInfo(application.api);
 
-        showAnkiConnectInfo();
-        showDictionaryInfo();
+    const settingsController = new SettingsController(application);
+    await settingsController.prepare();
 
-        const settingsController = new SettingsController();
-        await settingsController.prepare();
+    const backupController = new BackupController(settingsController, null);
+    await backupController.prepare();
 
-        const backupController = new BackupController(settingsController, null);
-        await backupController.prepare();
+    await promiseTimeout(100);
 
-        await promiseTimeout(100);
-
-        document.documentElement.dataset.loaded = 'true';
-    } catch (e) {
-        log.error(e);
-    }
-}
-
-await main();
+    document.documentElement.dataset.loaded = 'true';
+});

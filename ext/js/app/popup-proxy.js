@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2019-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {EventDispatcher, log} from '../core.js';
-import {yomitan} from '../yomitan.js';
+import {EventDispatcher} from '../core/event-dispatcher.js';
+import {log} from '../core/logger.js';
 
 /**
  * This class is a proxy for a Popup that is hosted in a different frame.
@@ -30,12 +30,15 @@ export class PopupProxy extends EventDispatcher {
      * @param {import('popup').PopupProxyConstructorDetails} details Details about how to set up the instance.
      */
     constructor({
+        application,
         id,
         depth,
         frameId,
         frameOffsetForwarder
     }) {
         super();
+        /** @type {import('../application.js').Application} */
+        this._application = application;
         /** @type {string} */
         this._id = id;
         /** @type {number} */
@@ -304,7 +307,7 @@ export class PopupProxy extends EventDispatcher {
      * @returns {Promise<import('cross-frame-api').ApiReturn<TName>>}
      */
     _invoke(action, params) {
-        return yomitan.crossFrame.invoke(this._frameId, action, params);
+        return this._application.crossFrame.invoke(this._frameId, action, params);
     }
 
     /**
@@ -319,7 +322,7 @@ export class PopupProxy extends EventDispatcher {
         try {
             return await this._invoke(action, params);
         } catch (e) {
-            if (!yomitan.isExtensionUnloaded) { throw e; }
+            if (!this._application.webExtension.unloaded) { throw e; }
             return defaultReturnValue;
         }
     }

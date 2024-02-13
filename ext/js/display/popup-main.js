@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2020-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,55 +16,40 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {log} from '../core.js';
+import {Application} from '../application.js';
 import {DocumentFocusController} from '../dom/document-focus-controller.js';
 import {HotkeyHandler} from '../input/hotkey-handler.js';
-import {JapaneseUtil} from '../language/sandbox/japanese-util.js';
-import {yomitan} from '../yomitan.js';
 import {DisplayAnki} from './display-anki.js';
 import {DisplayAudio} from './display-audio.js';
 import {DisplayProfileSelection} from './display-profile-selection.js';
 import {DisplayResizer} from './display-resizer.js';
 import {Display} from './display.js';
 
-/** Entry point. */
-async function main() {
-    try {
-        const documentFocusController = new DocumentFocusController();
-        documentFocusController.prepare();
+await Application.main(async (application) => {
+    const documentFocusController = new DocumentFocusController();
+    documentFocusController.prepare();
 
-        await yomitan.prepare();
+    const {tabId, frameId} = await application.api.frameInformationGet();
 
-        const {tabId, frameId} = await yomitan.api.frameInformationGet();
+    const hotkeyHandler = new HotkeyHandler();
+    hotkeyHandler.prepare(application.crossFrame);
 
-        const japaneseUtil = new JapaneseUtil(null);
+    const display = new Display(application, tabId, frameId, 'popup', documentFocusController, hotkeyHandler);
+    await display.prepare();
 
-        const hotkeyHandler = new HotkeyHandler();
-        hotkeyHandler.prepare();
+    const displayAudio = new DisplayAudio(display);
+    displayAudio.prepare();
 
-        const display = new Display(tabId, frameId, 'popup', japaneseUtil, documentFocusController, hotkeyHandler);
-        await display.prepare();
+    const displayAnki = new DisplayAnki(display, displayAudio);
+    displayAnki.prepare();
 
-        const displayAudio = new DisplayAudio(display);
-        displayAudio.prepare();
+    const displayProfileSelection = new DisplayProfileSelection(display);
+    displayProfileSelection.prepare();
 
-        const displayAnki = new DisplayAnki(display, displayAudio, japaneseUtil);
-        displayAnki.prepare();
+    const displayResizer = new DisplayResizer(display);
+    displayResizer.prepare();
 
-        const displayProfileSelection = new DisplayProfileSelection(display);
-        displayProfileSelection.prepare();
+    display.initializeState();
 
-        const displayResizer = new DisplayResizer(display);
-        displayResizer.prepare();
-
-        display.initializeState();
-
-        document.documentElement.dataset.loaded = 'true';
-
-        yomitan.ready();
-    } catch (e) {
-        log.error(e);
-    }
-}
-
-await main();
+    document.documentElement.dataset.loaded = 'true';
+});

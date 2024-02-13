@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ function getJsconfigPath(jsconfigType) {
     switch (jsconfigType) {
         case 'dev': path = '../dev/jsconfig.json'; break;
         case 'test': path = '../test/jsconfig.json'; break;
+        case 'benches': path = '../benches/jsconfig.json'; break;
         default: path = '../jsconfig.json'; break;
     }
     return join(dirname, path);

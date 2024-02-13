@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  * Copyright (C) 2021-2022  Yomichan Authors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -119,6 +119,7 @@ export function formatRulesJson(rules) {
     }
     if (ruleIndex > 0) { result += '\n'; }
     result += ']';
+    result += '\n';
     return result;
 }
 
@@ -150,7 +151,10 @@ export function generateRules(cssFilePath, overridesCssFilePath) {
         const styles = [];
         if (typeof declarations !== 'undefined') {
             for (const declaration of declarations) {
-                if (declaration.type !== 'declaration') { console.log(declaration); continue; }
+                if (declaration.type !== 'declaration') {
+                    console.log(declaration);
+                    continue;
+                }
                 const {property, value} = /** @type {css.Declaration} */ (declaration);
                 if (typeof property !== 'string' || typeof value !== 'string') { continue; }
                 styles.push([property, value]);

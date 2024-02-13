@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023  Yomitan Authors
+ * Copyright (C) 2023-2024  Yomitan Authors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
  */
 
 import type {FindTermsMatchType, FindTermsSortOrder, FindTermsVariantMode, FindTermsEmphaticSequencesMode, FindKanjiDictionary, FindTermDictionary} from '../ext/translation';
+import type {SearchResolution} from 'settings';
 import type {FindTermsMode} from 'translator';
 import type {DictionaryEntry} from 'dictionary';
 import type {NoteData} from 'anki-templates';
@@ -30,11 +31,13 @@ export type OptionsList = string | (string | OptionsPreset)[];
 export type OptionsPreset = FindKanjiOptionsPreset | FindTermsOptionsPreset;
 
 export type FindKanjiOptionsPreset = {
+    type: 'kanji';
     enabledDictionaryMap?: [key: string, value: FindKanjiDictionary][];
     removeNonJapaneseCharacters?: boolean;
 };
 
 export type FindTermsOptionsPreset = {
+    type: 'terms';
     matchType?: FindTermsMatchType;
     deinflect?: boolean;
     mainDictionary?: string;
@@ -50,7 +53,15 @@ export type FindTermsOptionsPreset = {
     textReplacements?: (FindTermsTextReplacement[] | null)[];
     enabledDictionaryMap?: [key: string, value: FindTermDictionary][];
     excludeDictionaryDefinitions?: string[] | null;
+    searchResolution?: SearchResolution;
 };
+
+export type OptionsType = OptionsPreset['type'];
+
+export type OptionsPresetGeneric<T extends OptionsType> = {
+    kanji: FindKanjiOptionsPreset;
+    terms: FindTermsOptionsPreset;
+}[T];
 
 export type FindTermsTextReplacement = {
     pattern: string;

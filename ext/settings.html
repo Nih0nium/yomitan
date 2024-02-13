@@ -140,6 +140,12 @@
                         </span>
                         <span class="storage-use-finite" hidden>
                             Yomitan is using approximately <span class="storage-usage">?</span> of <span class="storage-quota">?</span>.
+                            <div class="storage-exhaustion-alert warning-text margin-above">
+                                <div>
+                                    <strong>Your system is running low on storage space.</strong><br>
+                                    Importing dictionaries may fail.
+                                </div>
+                            </div>
                         </span>
                         <span class="storage-use-infinite" hidden>
                             Yomitan is permitted unlimited storage.
@@ -2473,7 +2479,7 @@
 
         <div class="warning-text margin-above no-dictionaries-installed-warning" hidden>
             No dictionaries have been installed yet.
-            Visit the <a href="https://github.com/themoeway/yomitan#dictionaries" target="_blank" rel="noopener noreferrer">Yomitan homepage</a>
+            Visit the <a href="https://github.com/themoeway/yomitan/blob/master/docs/dictionaries.md#dictionaries" target="_blank" rel="noopener noreferrer">Yomitan homepage</a>
             for a list of free dictionaries or click the <em>Import</em> button below to select a dictionary file to import.
         </div>
         <div id="dictionary-error" class="danger-text margin-above" hidden></div>
@@ -2687,6 +2693,24 @@
             </div>
             <div class="settings-item-children more" hidden>
                 When deinflecting words, only dictionary entries whose POS matches that expected by the deinflector will be shown.
+                <p><a tabindex="0" class="more-toggle" data-parent-distance="3">Hide&hellip;</a></p>
+            </div>
+        </div>
+        <hr>
+        <div class="settings-item dictionary-use-deinflections-setting" hidden>
+            <div class="settings-item-inner">
+                <div class="settings-item-left">
+                    <div class="settings-item-label">
+                        Use deinflections
+                        <a tabindex="0" class="more-toggle more-only" data-parent-distance="4">(?)</a>
+                    </div>
+                </div>
+                <div class="settings-item-right">
+                    <label class="toggle"><input type="checkbox" class="dictionary-use-deinflections-toggle"><span class="toggle-body"><span class="toggle-track"></span><span class="toggle-knob"></span></span></label>
+                </div>
+            </div>
+            <div class="settings-item-children more" hidden>
+                Deinflections from this dictionary will be used.
                 <p><a tabindex="0" class="more-toggle" data-parent-distance="3">Hide&hellip;</a></p>
             </div>
         </div>
@@ -3253,6 +3277,10 @@
                     <td>Audio sample of a native speaker's pronunciation in MP3 format, if available.</td>
                 </tr>
                 <tr>
+                    <td><code class="anki-field-marker">{cloze-body-kana}</code></td>
+                    <td>Kana reading for <code class="anki-field-marker">{cloze-body}</code>.</td>
+                </tr>
+                <tr>
                     <td><code class="anki-field-marker">{conjugation}</code></td>
                     <td>Conjugation path from the raw inflected term to the source term.</td>
                 </tr>
@@ -3301,6 +3329,10 @@
                 <tr>
                     <td><code class="anki-field-marker">{pitch-accent-positions}</code></td>
                     <td>List of accent downstep positions for the term as a number.</td>
+                </tr>
+                <tr>
+                    <td><code class="anki-field-marker">{pitch-accent-categories}</code></td>
+                    <td>List of pitch accent categories for the term (e.g. heiban, kifuku, atamadaka, odaka, nakadaka).</td>
                 </tr>
                 <tr>
                     <td><code class="anki-field-marker">{reading}</code></td>
@@ -3369,6 +3401,40 @@
                 <tr>
                     <td><code class="anki-field-marker">{document-title}</code></td>
                     <td>Title of the web page that the term or kanji appeared in.</td>
+                </tr>
+                <tr>
+                    <td><code class="anki-field-marker">{frequencies}</code></td>
+                    <td>
+                        Frequency information for the term or kanji.
+                    </td>
+                </tr>
+                <tr>
+                    <td><code class="anki-field-marker">{frequency-harmonic-rank}</code></td>
+                    <td>
+                        The harmonic mean of frequency data for the current term or kanji.<br>
+                        Defaults to rank 9999999 when frequency data is not found, indicating extremely low rank-based term or kanji usage.
+                    </td>
+                </tr>
+                <tr>
+                    <td><code class="anki-field-marker">{frequency-harmonic-occurrence}</code></td>
+                    <td>
+                        The harmonic mean of frequency data for the current term or kanji.<br>
+                        Defaults to 0 occurrences when frequency data is not found, the lowest possible occurrence-based term or kanji usage.
+                    </td>
+                </tr>
+                <tr>
+                    <td><code class="anki-field-marker">{frequency-average-rank}</code></td>
+                    <td>
+                        The average of frequency data for the current term or kanji.<br>
+                        Defaults to rank 9999999 when frequency data is not found, indicating extremely low rank-based term or kanji usage.
+                    </td>
+                </tr>
+                <tr>
+                    <td><code class="anki-field-marker">{frequency-average-occurrence}</code></td>
+                    <td>
+                        The average of frequency data for the current term or kanji.<br>
+                        Defaults to 0 occurrences when frequency data is not found, the lowest possible occurrence-based term or kanji usage.
+                    </td>
                 </tr>
                 <tr>
                     <td><code class="anki-field-marker">{screenshot}</code></td>
